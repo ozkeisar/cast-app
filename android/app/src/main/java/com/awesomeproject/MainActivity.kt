@@ -5,6 +5,10 @@ import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 
+import android.os.Bundle;
+import androidx.annotation.Nullable;
+import com.google.android.gms.cast.framework.CastContext;
+
 class MainActivity : ReactActivity() {
 
   /**

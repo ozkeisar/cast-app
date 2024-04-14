@@ -3,116 +3,181 @@
  * https://github.com/facebook/react-native
  *
  * @format
+ * @flow strict-local
  */
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, {useState, useRef, useEffect} from 'react';
 import {
+  FlatList,
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
-  useColorScheme,
   View,
+  Text,
 } from 'react-native';
+import Video from 'react-native-video';
+import GoogleCast, {
+  useRemoteMediaClient,
+  useCastSession,
+  useDevices,
+  CastButton,
+} from 'react-native-google-cast';
+import VideoRow from './src/components/VideoRow';
+import {VideoList} from './src/consts/index';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
-type SectionProps = PropsWithChildren<{
+const backgroundStyle = {
+  backgroundColor: '#fff',
+};
+interface VideoItem {
+  description: string;
+  sources: string[];
+  subtitle: string;
+  thumb: string;
   title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
 }
+const App = () => {
+  const videoRef = useRef(null);
+  const client = useRemoteMediaClient();
+  const castSession = useCastSession();
+  const devices = useDevices();
+  const [activeItem, setActiveItem] = useState<VideoItem | undefined>(undefined);
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+  useEffect(()=>{
+    const discoveryManager = GoogleCast.getDiscoveryManager()
+    discoveryManager.startDiscovery()
+  },[])
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
+  if (client && activeItem?.sources) {
+    // Send the media to your Cast device as soon as we connect to a device
+    // (though you'll probably want to call this later once user clicks on a video or something)
+    client.loadMedia({
+      mediaInfo: {
+        contentUrl: activeItem.sources[0],
+        contentType: 'video/mp4',
+      },
+    });
+  }
 
   return (
     <SafeAreaView style={backgroundStyle}>
       <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        barStyle={'light-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
+      <View
+        style={{
+          height: '100%',
+        }}>
+        <View style={styles.playerContainer}>
+           
+          {!!activeItem && (
+            <Video
+              resizeMode="contain"
+              source={{
+                uri: activeItem?.sources?.[0],
+                type: 'mp4'
+              }}
+              ref={videoRef}
+              style={styles.backgroundVideo}
+              paused={false}
+              controls
+              repeat={true}
+            />
+          )}
+        </View>
+        <View style={{
+          height: 50,
+          paddingVertical: 10,
+          width: '100%',
+          justifyContent:'center',
+          paddingHorizontal: 10,
+        }}>
+          <View>
+            <Text style={{color:'black', fontSize: 18}}>{activeItem?.title}</Text>
+            <Text style={{color:'black', fontSize: 14}}>{activeItem?.subtitle}</Text>
+          </View>
+          {!!activeItem?.sources && (
+              <View
+                style={styles.castBtn}>
+                <CastButton
+                  style={{
+                    width: 24,
+                    height: 24,
+                    tintColor: '#000',
+                    marginStart: 10,
+                  }}
+                />
+              </View>
+            )} 
+        </View>
         <View
           style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
+            flex: 1,
+            overflow: 'hidden',
+            width: '100%',
           }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
+          <FlatList
+            style={{
+              height: '100%',
+              width: '100%',
+            }}
+            data={VideoList}
+            renderItem={({item}) => {
+              return (
+                <VideoRow
+                  url={item.sources[0]}
+                  title={item.title}
+                  thumb={item.thumb}
+                  onPlay={() => {
+                    setActiveItem(item);
+                  }}
+                />
+              );
+            }}
+          />
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  playerContainer: {
+    height: 250,
+    width: '100%',
+    backgroundColor: 'black',
+    position: 'relative',
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+  backgroundVideo: {
+    top: 0,
+    bottom: 0,
+    right: 0,
+    left: 0,
+    position: 'absolute',
   },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
+  row: {
+    padding: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
   },
-  highlight: {
-    fontWeight: '700',
+  TitleText: {
+    flex: 2,
   },
+  watchBtn: {
+    width: 110,
+    height: 45,
+    backgroundColor: 'red',
+    borderRadius: 7,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  castBtn: {
+    position:'absolute',
+    top: 10,
+    right: 10,
+    zIndex:1,
+  }
 });
 
 export default App;
